@@ -77,8 +77,8 @@ extern Semaphore_Handle semaphore2;
 extern Semaphore_Handle semaphore3;
 extern Event_Handle event0;
 extern Mailbox_Handle mailbox0;
-
-char  GPSValues[100],latitudeResult[40],longitudeResult[40],*token,Date[9];
+const char *token;
+char  GPSValues[100],latitudeResult[40],longitudeResult[40],Date[9];
 char c0;
 const char parseValue[12][20];
 
@@ -106,7 +106,7 @@ Void swifunc(UArg arg1){
     }
 
 }
-Void swi1_func(UArg arg1,UArg arg2){
+Void swi1_func(UArg arg1){
     ref++;
     if (ref ==10) {             // fix time every 10 seconds.
             Swi_post(swi0);
@@ -273,10 +273,10 @@ Void GPS_Location(UArg arg1, UArg arg2){
 
 Void GpsDate(UArg arg1, UArg arg2){
     int index1=0,i=0;
-
+    const char *GpsDate;
     while(1){
        Semaphore_pend(semaphore0,BIOS_WAIT_FOREVER);   // waits location values for 1 second
-           char *GpsDate =parseValue[7];
+           GpsDate =parseValue[7];
            index1=0;
           for (i = 0; i <6 ; ++i) {
             Date[index1] = GpsDate[i];
@@ -292,70 +292,6 @@ Void GpsDate(UArg arg1, UArg arg2){
        System_flush();
     }
 }
-
-/* another NTP func recv over TCP*/
-/*bool recvTimeFromNTp(char *serverIP, int serverPort)
-{
-    System_printf("\nRecvTimefromNtpServer is runnig");
-    System_flush();
-
-    int sockfd, connStat;
-    bool retval=false;
-    struct sockaddr_in serverAddr;
-    char timedata[4];
-
-
-    sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sockfd == -1) {
-        System_printf("Socket not created");
-        close(sockfd);
-        return false;
-    }
-
-    memset(&serverAddr, 0, sizeof(serverAddr));  // clear serverAddr structure
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(serverPort);     // convert port # to network order
-    inet_pton(AF_INET, serverIP, &(serverAddr.sin_addr.s_addr));
-
-    connStat = connect(sockfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
-    if(connStat < 0) {
-        System_printf("recvTimeFromNTP::Error while connecting to server\n");
-    }
-
-        recv(sockfd,  timedata ,sizeof(timedata),0);   // recv  32 bit number 4 byte data from NTP
-        if (sockfd>0) {
-            close(sockfd);
-        }
-        System_flush();
-        System_printf(" --timestamp : %lu\n",timedata);
-         // Time =          2^24*Hour   +   2^16*Minute      +  2^8*Second     + 2^0*Milisecond
-        timestamp= timedata[0]*16777216 +  timedata[1]*65536 + timedata[2]*256 + timedata[3];
-        timestamp+=10800; // +3 gmt
-        //System_printf("\nTime :%lu", timestamp);
-       // System_flush();
-        //ctime(&timedata);
-
-        time_t rawtime = timestamp;
-
-        // sec,min,hour,day,mon,year
-        // Format time, "yyyy-mm-dd hh:mm:ss"
-         ts = localtime(&rawtime);
-
-       //  strftime(currentTime, sizeof(currentTime), "%Y-%m-%d %H:%M:%S", ts);
-
-
-         year = ts->tm_year+1900;
-         month = ts->tm_mon+1;
-         day = ts->tm_mday;
-         hour = ts->tm_hour;
-         minutes = ts->tm_min;
-         seconds = ts->tm_sec;
-
-         ref=minutes;
-
-    close(sockfd);
-    return retval;
-}*/
 
 
 void sendData2Server(char *serverIP, int serverPort, char *data, int size)
