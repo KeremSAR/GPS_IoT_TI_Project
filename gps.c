@@ -89,11 +89,7 @@ void printError(char *errString, int code)
     BIOS_exit(code);
 }
 Void timerISR(UArg arg1){
-
-
         Swi_post(swi1);
-
-
 }
 
 Void swifunc(UArg arg1){
@@ -109,12 +105,6 @@ Void swifunc(UArg arg1){
       hour++;
     }
 
-
-
-    /*System_printf("Date: %d-%lu-%d Time: %02d:%02d:%02d\n", day,month,year,hour,minutes ,seconds);
-     System_flush();
-*/
-
 }
 Void swi1_func(UArg arg1,UArg arg2){
     ref++;
@@ -123,14 +113,10 @@ Void swi1_func(UArg arg1,UArg arg2){
             Semaphore_post(semaphore3);  // posts to SNTP
             ref=0;
         }
-    /*if (year==1900 ||year == 0) {
-        Swi_post(swi0);
-        Semaphore_post(semaphore0);
 
-    }*/
     else {
         Swi_post(swi0);
-      //  Semaphore_post(semaphore1);
+
     }
 
 }
@@ -367,8 +353,6 @@ Void GpsDate(UArg arg1, UArg arg2){
 
          ref=minutes;
 
-
-
     close(sockfd);
     return retval;
 }*/
@@ -431,9 +415,7 @@ Void clientSocketTask(UArg arg0, UArg arg1){
 
     sendData2Server("192.168.1.26", SERVERPORT, currentTime, strlen(currentTime));
 
-
     }
-
 }
 
 Void SNTPsocketTask(UArg arg0, UArg arg1){
@@ -447,8 +429,6 @@ Void SNTPsocketTask(UArg arg0, UArg arg1){
       struct addrinfo hints;
       struct addrinfo *addrs;
       struct addrinfo *currAddr;
-
-
 
       memset(&hints, 0, sizeof(struct addrinfo));
       hints.ai_family = AF_INET;   // IPv4
@@ -480,7 +460,6 @@ Void SNTPsocketTask(UArg arg0, UArg arg1){
       }
 
 
-
       SNTP_forceTimeSync();
 
       Semaphore_pend(semaphore3, BIOS_WAIT_FOREVER);   // waits for  10 seconds to restart sntp
@@ -507,7 +486,6 @@ Void SNTPsocketTask(UArg arg0, UArg arg1){
       Semaphore_post(semaphore2);       // starts GPS task.
       System_flush();
    }
-
 
 }
 
