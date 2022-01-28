@@ -73,13 +73,11 @@ unsigned char ntpServers[NTP_SERVERS_SIZE];
 extern Swi_Handle swi0;
 extern Swi_Handle swi1;
 extern Semaphore_Handle semaphore0;
-extern Semaphore_Handle semaphore1;
 extern Semaphore_Handle semaphore2;
 extern Semaphore_Handle semaphore3;
 extern Event_Handle event0;
-extern Event_Handle event1;
 extern Mailbox_Handle mailbox0;
-extern Mailbox_Handle mailbox1;
+
 char  GPSValues[100],latitudeResult[40],longitudeResult[40],*token,Date[9];
 char c0;
 const char parseValue[12][20];
@@ -94,13 +92,13 @@ Void timerISR(UArg arg1){
 
 
         Swi_post(swi1);
-        Event_post(event0,Event_Id_00);
+
 
 }
 
 Void swifunc(UArg arg1){
     seconds++;
-
+    Event_post(event0,Event_Id_00);  // to send values every seconds
      if(seconds==60){
 
       seconds=0;
@@ -120,9 +118,9 @@ Void swifunc(UArg arg1){
 }
 Void swi1_func(UArg arg1,UArg arg2){
     ref++;
-    if (ref ==10) {
+    if (ref ==10) {             // fix time every 10 seconds.
             Swi_post(swi0);
-            Semaphore_post(semaphore3);
+            Semaphore_post(semaphore3);  // posts to SNTP
             ref=0;
         }
     /*if (year==1900 ||year == 0) {
@@ -132,7 +130,7 @@ Void swi1_func(UArg arg1,UArg arg2){
     }*/
     else {
         Swi_post(swi0);
-        Semaphore_post(semaphore1);
+      //  Semaphore_post(semaphore1);
     }
 
 }
@@ -174,7 +172,7 @@ void GPS_Init(void)
 /*GPS task that recv Latitude and Longitude values from the GPS*/
 Void GPS_Location(UArg arg1, UArg arg2){
 
-    Semaphore_pend(semaphore2, BIOS_WAIT_FOREVER);
+    Semaphore_pend(semaphore2, BIOS_WAIT_FOREVER);   // waits to start SNTP
 
     int index=0,degrees;
     double latitude=0.0,longitude=0.0,seconds=0.0,converted_result=0.0;
@@ -262,9 +260,9 @@ Void GPS_Location(UArg arg1, UArg arg2){
                                         strcat(Location,parseValue[5]);
 
                                         /* To send Latitude and longitude value every seconds*/
-                                        Event_pend(event0,Event_Id_00,Event_Id_NONE,BIOS_WAIT_FOREVER);
-                                        Mailbox_post(mailbox0, &Location, BIOS_NO_WAIT);
-                                        Semaphore_post(semaphore0);
+                                        Event_pend(event0,Event_Id_00,Event_Id_NONE,BIOS_WAIT_FOREVER);  // waits 1 seconds
+                                        Mailbox_post(mailbox0, &Location, BIOS_NO_WAIT);   // post location value to client task
+                                        Semaphore_post(semaphore0); // post to GpsDate task
                                         System_flush();
 
                                     }
@@ -273,9 +271,9 @@ Void GPS_Location(UArg arg1, UArg arg2){
                                     else{
                                         char NotFixed[80] ="00.000000 , 00.000000";
                                         /* To send Latitude and longitude value every seconds*/
-                                        Event_pend(event0,Event_Id_00,Event_Id_NONE,BIOS_WAIT_FOREVER);
-                                        Mailbox_post(mailbox0, &NotFixed, BIOS_NO_WAIT);
-                                        Event_post(event1,Event_Id_01);
+                                        Event_pend(event0,Event_Id_00,Event_Id_NONE,BIOS_WAIT_FOREVER); // waits 1 seconds
+                                        Mailbox_post(mailbox0, &NotFixed, BIOS_NO_WAIT);  // post notFixed value to client task
+
                                         System_printf("  GPS NOT FIXED \n\n");
                                     }
 
@@ -287,11 +285,11 @@ Void GPS_Location(UArg arg1, UArg arg2){
     }
 }
 
-Void UTCtask(UArg arg1, UArg arg2){
+Void GpsDate(UArg arg1, UArg arg2){
     int index1=0,i=0;
 
     while(1){
-       Semaphore_pend(semaphore0,BIOS_WAIT_FOREVER);
+       Semaphore_pend(semaphore0,BIOS_WAIT_FOREVER);   // waits location values for 1 second
            char *GpsDate =parseValue[7];
            index1=0;
           for (i = 0; i <6 ; ++i) {
@@ -303,13 +301,13 @@ Void UTCtask(UArg arg1, UArg arg2){
             }
             index1++;}
           Date[8]='\0';
-          Event_post(event1,Event_Id_00);
-     // Mailbox_post(mailbox1, &Date, BIOS_NO_WAIT);
+
        System_printf("DATE: %s\n",Date);
        System_flush();
     }
 }
 
+/* another NTP func recv over TCP*/
 /*bool recvTimeFromNTp(char *serverIP, int serverPort)
 {
     System_printf("\nRecvTimefromNtpServer is runnig");
@@ -420,11 +418,10 @@ void sendData2Server(char *serverIP, int serverPort, char *data, int size)
 
 Void clientSocketTask(UArg arg0, UArg arg1){
     char GPSloc[120];
-   // char GPSDate[120];
+
     while(1){
-    Event_pend(event1,Event_Id_NONE,Event_Id_00+Event_Id_01,BIOS_WAIT_FOREVER);
-   // Mailbox_pend(mailbox1, &GPSDate, BIOS_WAIT_FOREVER);
-    Mailbox_pend(mailbox0, &GPSloc, BIOS_WAIT_FOREVER);
+
+    Mailbox_pend(mailbox0, &GPSloc, BIOS_WAIT_FOREVER);   // waits gps location
 
     sprintf(currentTime, "\nDate: %d-%lu-%d Time: %02d:%02d:%02d", day,month,year,hour,minutes ,seconds);
     strcat(currentTime, " - ");
@@ -486,7 +483,7 @@ Void SNTPsocketTask(UArg arg0, UArg arg1){
 
       SNTP_forceTimeSync();
 
-      Semaphore_pend(semaphore3, BIOS_WAIT_FOREVER);
+      Semaphore_pend(semaphore3, BIOS_WAIT_FOREVER);   // waits for  10 seconds to restart sntp
 
       ts = time(NULL) +10800; // +3 gmt
 
@@ -511,19 +508,7 @@ Void SNTPsocketTask(UArg arg0, UArg arg1){
       System_flush();
    }
 
- /*while(1){
-      // Event_pend(event0,Event_Id_00+Event_Id_01,Event_Id_NONE,BIOS_WAIT_FOREVER);
-       //Semaphore_pend(semaphore0,BIOS_WAIT_FOREVER);
 
-
-
-    if(recvTimeFromNTp(SOCKETTEST_IP, NTP_PORT)) {
-                System_printf("clientSocketTask:: Time is received from the NTP server\n");
-                System_flush();
-
-            }
-   // Semaphore_post(semaphore2);
-  // }*/
 }
 
 
